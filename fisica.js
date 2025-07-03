@@ -13,7 +13,7 @@ function obtenerCarga(id, modo, lado) {
     x = parseFloat(document.getElementById(`x${id}`).value);
     y = parseFloat(document.getElementById(`y${id}`).value);
   } else {
-    // Posiciones automáticas para triángulo equilátero
+    // Posiciones fijas para triángulo equilátero centrado
     if (id === 1) {
       x = -lado / 2;
       y = 0;
@@ -68,6 +68,7 @@ function simular() {
   if (!c1 || !c2 || !c3) return;
 
   const cargas = [c1, c2, c3];
+  const posiciones = [c1, c2, c3];
   const unidades = [
     document.getElementById("unit1").value,
     document.getElementById("unit2").value,
@@ -77,9 +78,40 @@ function simular() {
   const canvas = document.getElementById("lienzo");
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const offset = 200;
-  const escala = 100;
+    // Mostrar datos ingresados en el gráfico
+  ctx.fillStyle = "black";
+  ctx.font = "14px sans-serif";
 
+  let yTexto = 20;
+
+  if (modo === "distancia") {
+    ctx.fillText(`Distancia ingresada: ${lado} m`, 10, yTexto);
+    yTexto += 20;
+  }
+
+  cargas.forEach((c, i) => {
+    const valorUC = (c.q / 1e-6).toFixed(2); // Mostrar en μC
+    ctx.fillText(`q${i + 1}: ${valorUC} μC`, 10, yTexto);
+    yTexto += 20;
+  });
+
+  const offset = canvas.height / 2;
+  const escala = 200/lado;
+
+  // Conectar cargas (dibujar triángulo)
+  ctx.strokeStyle = "#888";
+  ctx.lineWidth = 1;
+  const coloresLados = ["#e91e63", "#3f51b5", "#4caf50"];
+  [[0,1],[1,2],[2,0]].forEach(([i,j]) => {
+    ctx.beginPath();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = coloresLados[k];
+    ctx.moveTo(offset + posiciones[i].x * escala, offset - posiciones[i].y * escala);
+    ctx.lineTo(offset + posiciones[j].x * escala, offset - posiciones[j].y * escala);
+    ctx.stroke();
+
+  });
+  
   // Dibujar cargas
   cargas.forEach((c, i) => {
     const px = offset + c.x * escala;
@@ -90,6 +122,15 @@ function simular() {
     ctx.fill();
     ctx.fillStyle = "black";
     ctx.fillText(`q${i + 1}`, px + 12, py);
+    const valorUC = (c.q / 1e-6).toFixed(2); // Convertir a μC
+    let dx = -25, dy = -15; // desplazamiento por defecto
+    if (i === 0) dx = -40;
+    if (i === 1) dx = +10;
+    if (i === 2) dy = -25;
+
+    ctx.fillStyle = "black";
+    ctx.font = "14px sans-serif";
+    ctx.fillText(`${valorUC} μC`, px + dx, py + dy);
   });
 
   const resultadosDiv = document.getElementById("resultados");
@@ -105,7 +146,7 @@ function simular() {
 
     resultadosDiv.innerHTML += `<p>Fuerza entre q${i + 1} y q${j + 1}: ${mag} N</p>`;
 
-    // Dibujar vector
+    // Dibujar vector desde j hacia j (representa fuerza recibida)
     ctx.beginPath();
     ctx.moveTo(offset + cargas[j].x * escala, offset - cargas[j].y * escala);
     ctx.lineTo(
@@ -134,9 +175,9 @@ function simular() {
   fuerzasNetas.forEach((f, i) => {
     const mag = Math.sqrt(f.fx ** 2 + f.fy ** 2);
     const texto = mag < 1e-3 ? mag.toExponential(3) : mag.toFixed(3);
-    resultadosDiv.innerHTML += `<p>q${i + 1}: Fx = ${f.fx.toFixed(2)} N, Fy = ${f.fy.toFixed(2)} N → <b>F = ${texto} N</b></p>`;
+    resultadosDiv.innerHTML += `<p>q${i + 1}:<br> Fx = ${f.fx.toFixed(2)} N,<br>Fy = ${f.fy.toFixed(2)} N <br> <b>F = ${texto} N</b></p>`;
 
-    // Dibujo
+    // Dibujo vector de fuerza neta
     ctx.beginPath();
     ctx.moveTo(offset + cargas[i].x * escala, offset - cargas[i].y * escala);
     ctx.lineTo(
@@ -147,16 +188,30 @@ function simular() {
     ctx.lineWidth = 2;
     ctx.stroke();
   });
+  // Mostrar distancia sobre el lado superior del triángulo (entre q2 y q3)
+  if (modo === "distancia") {
+    const midX = (cargas[1].x + cargas[2].x) / 2;
+    const midY = (cargas[1].y + cargas[2].y) / 2;
+    const px = offset + midX * escala;
+    const py = offset - midY * escala;
+    ctx.fillStyle = "black";
+    ctx.font = "14px sans-serif";
+    ctx.fillText(`${lado} m`, px - 20, py - 10);
+  }
+
 }
 
 function actualizarModo() {
   const modo = document.getElementById("modoEntrada").value;
   const mostrarCoord = modo === "coordenadas";
-  document.getElementById("globalAnguloContainer").style.display = "none"; // ya no se usa
+  document.getElementById("globalAnguloContainer").style.display = "none";
 
   for (let i = 1; i <= 3; i++) {
     document.querySelector(`#c${i} .coordenadas`).style.display = mostrarCoord ? "block" : "none";
     document.querySelector(`#c${i} .distancia`).style.display = mostrarCoord ? "none" : "block";
   }
 }
+
+
+
 
